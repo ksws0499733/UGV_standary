@@ -1,17 +1,21 @@
-// ConsoleApplication1.cpp : ¶¨Òå¿ØÖÆÌ¨Ó¦ÓÃ³ÌĞòµÄÈë¿Úµã¡£
+ï»¿// ConsoleApplication1.cpp : å®šä¹‰æ§åˆ¶å°åº”ç”¨ç¨‹åºçš„å…¥å£ç‚¹ã€‚
 //
 
 #include "stdafx.h"
-#include <iostream>
 
-#include "stdafx.h"  
+
 
 #ifndef _WIN32_WINNT  
 #define _WIN32_WINNT 0x0501  
 #endif  
 
+#include <WinSock2.h>
 #include <windows.h>  
 #include <winioctl.h>  
+#include <Iphlpapi.h>
+#include <iostream>
+
+#pragma comment(lib, "Iphlpapi.lib") //éœ€è¦æ·»åŠ Iphlpapi.libåº“
 
 //  
 BOOL GetPhyDriveSerial(LPTSTR pModelNo, LPTSTR pSerialNo);
@@ -24,7 +28,7 @@ void TrimStart(LPTSTR pBuf);
 //  
 BOOL GetPhyDriveSerial(LPTSTR pModelNo, LPTSTR pSerialNo)
 {
-	//-1ÊÇÒòÎª SENDCMDOUTPARAMS µÄ½áÎ²ÊÇ BYTE bBuffer[1];  
+	//-1æ˜¯å› ä¸º SENDCMDOUTPARAMS çš„ç»“å°¾æ˜¯ BYTE bBuffer[1];  
 	BYTE IdentifyResult[sizeof(SENDCMDOUTPARAMS) + IDENTIFY_BUFFER_SIZE - 1];
 	DWORD dwBytesReturned;
 	GETVERSIONINPARAMS get_version;
@@ -52,7 +56,7 @@ BOOL GetPhyDriveSerial(LPTSTR pModelNo, LPTSTR pSerialNo)
 	return TRUE;
 }
 
-//°ÑWORDÊı×éµ÷Õû×Ö½ÚĞòÎªlittle-endian£¬²¢ÂË³ı×Ö·û´®½áÎ²µÄ¿Õ¸ñ¡£  
+//æŠŠWORDæ•°ç»„è°ƒæ•´å­—èŠ‚åºä¸ºlittle-endianï¼Œå¹¶æ»¤é™¤å­—ç¬¦ä¸²ç»“å°¾çš„ç©ºæ ¼ã€‚  
 void ToLittleEndian(PUSHORT pWords, int nFirstIndex, int nLastIndex, LPTSTR pBuf)
 {
 	int index;
@@ -74,7 +78,7 @@ void ToLittleEndian(PUSHORT pWords, int nFirstIndex, int nLastIndex, LPTSTR pBuf
 	}
 }
 
-//ÂË³ı×Ö·û´®ÆğÊ¼Î»ÖÃµÄ¿Õ¸ñ  
+//æ»¤é™¤å­—ç¬¦ä¸²èµ·å§‹ä½ç½®çš„ç©ºæ ¼  
 void TrimStart(LPTSTR pBuf)
 {
 	if (*pBuf != 0x20)
@@ -93,7 +97,39 @@ void TrimStart(LPTSTR pBuf)
 	}
 	*pDest = 0;
 }
+using namespace std;
+int main_MAC(char maxInfo[128][128])
+{
+	//char maxInfo[128][128] = {""};
+	DWORD netCardNum = 0;
+	PIP_ADAPTER_INFO pIpAdapterInfo = new IP_ADAPTER_INFO();
+	unsigned long stSize = sizeof(IP_ADAPTER_INFO);
 
+	int nRel = GetAdaptersInfo(pIpAdapterInfo, &stSize);
+	
+	if (ERROR_BUFFER_OVERFLOW == nRel)	{
+		delete pIpAdapterInfo;
+		pIpAdapterInfo = (PIP_ADAPTER_INFO)new BYTE[stSize];
+		nRel = GetAdaptersInfo(pIpAdapterInfo, &stSize);
+	}
+
+	if (ERROR_SUCCESS == nRel)	{
+		while (pIpAdapterInfo)		{
+			for (DWORD i = 0; i < pIpAdapterInfo->AddressLength; i++) {
+				sprintf_s(maxInfo[netCardNum], "%s%02X", maxInfo[netCardNum], pIpAdapterInfo->Address[i]);
+			}
+			netCardNum++;
+			pIpAdapterInfo = pIpAdapterInfo->Next;
+		}
+		for(int ii=0;ii<netCardNum;ii++)
+			cout << maxInfo[ii] << endl;
+	}
+	cout << "---------------\n";
+	if (pIpAdapterInfo)	{
+		delete pIpAdapterInfo;
+	}
+	return netCardNum;
+}
 
 int _tmain(int argc, _TCHAR* argv[])
 {
@@ -108,6 +144,11 @@ int _tmain(int argc, _TCHAR* argv[])
 	{
 		_tprintf(_T("Failed.\n"));
 	}
+	char maxInfo[128][128] = { "" };
+	int len = main_MAC(maxInfo);
+	for (int ii = 0; ii < len; ii++)
+		cout << maxInfo[ii] << endl;
+
 	getchar();
 	return 0;
 
